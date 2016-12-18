@@ -1,0 +1,703 @@
+---
+title: "Final Project: Election Results Analysis - Predictive Models "
+author: "Daniel Thonn"
+date: "December 15, 2016"
+output: 
+  html_document:
+    highlight: tango
+    theme: united
+    pdf_document: default
+---
+
+** 2016 Presidential Election Results - Predictive Models **
+** Daniel Thonn **
+
+** Summary of Project **
+
+This project section involves the analysis of election results and implementing a predictive model on these results.
+
+Questions: 
+a). Can the election be predicted using based on basic demographics and historical election results?
+b). Once a model is created what can be done to improve it?
+
+Objective: Determine if the 2016 Presidential Electon result could be predicted in advance by historical election trends and basic demographics.  
+
+Examine what consistent pre-election adjustments could be made to improve results.
+
+Approach: Check multiple models to predict the outcome of the election.  Note if demographics increases or decreases the accuracy of the models.  Note if consistent adjustment rules to the training data can be made to improve the accuracy of the models. 
+
+#Sources:
+1). US Census
+https://www.census.gov/
+
+2). Bureau of Labor Statistics
+https://www.bls.gov/lau/stalt.htm
+
+3). Dept of Homeland Security
+https://www.dhs.gov/immigration-statistics
+
+4). University of California - The American Presidency Project
+http://www.presidency.ucsb.edu/elections.php
+
+
+To reproduce follow the steps below:
+
+a) Place the following files in c:\data
+  a1). ByState_Actual_2016.csv
+  a2). Election_Results_Main_d2.csv
+  a3). Election_Results_Main_d5.csv
+  a4). Election_Results_Main_d7.csv
+  a5). Election_Results_Main_d8.csv
+  a6). Election_Results_Main_d16.csv
+b). Run the file R_607_Project_6c_Elections_DT.Rmd in "R"
+
+** Set up and Preparing the Environment **
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+** Install Packages **
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+
+#packages and libraries
+
+#library for building basic decision tree
+#library(rpart)
+
+#library for ctree decision tree
+#install.packages("party")
+#library(party)
+
+#library for randomForest decision tree
+#install.packages("randomForest")
+library(randomForest)
+
+#install.packages("dbConnect")
+#library(dbConnect) 
+
+#install.packages("gplot2")
+library(ggplot2)
+
+#install.packages("tidyr")
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(plyr)
+
+library('scales')
+
+```
+
+
+**   Load Refrence Files **
+State Names
+Actual 2016 Results
+
+```{r, echo=TRUE}
+
+ByState_Actual_2016 <- read.csv(
+              "C:/data/ByState_Actual_2016.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+head(ByState_Actual_2016)
+
+
+```
+
+
+
+** Election Results-A: Historical Results (2000-2014) with actual 2016 only **
+
+Scope: Use only historical data.  This is a test run using actual 2016 election data for pre-liminary test purposes.
+
+```{r, echo=TRUE}
+
+#Load data from a text file
+#data_1 <- readLines("C:/mysqldata/tournamentinfo.txt") 
+#head(data_1)
+
+##d2: with state
+
+# Load the data csv file
+Elect_Results_1 <- read.csv(
+              "C:/data/Election_Results_Main_d2.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+head(Elect_Results_1)
+#str(Elect_Results_1)
+#names(Elect_Results_1)
+
+
+#Michigan
+newdata1 <- data.frame(
+  STATE = 23,
+  X2000 = 2,
+  X2004 = 2,
+  X2008 = 2,
+  X2012 = 2
+)
+
+#newdata1
+
+#California
+newdata1b <- data.frame(
+  STATE = 5,
+  X2000 = 2,
+  X2004 = 2,
+  X2008 = 2,
+  X2012 = 2
+)
+
+#newdata1b
+
+target1 <- X2016  ~ .
+#target1
+
+rf1 <- randomForest(target1,data=Elect_Results_1,ntree=1000,proximity=TRUE)
+#head(rf1)
+#str(rf1)
+#rf1
+#names(Elect_Results_1)
+
+#head(Elect_Results_1)
+
+
+#Michigan
+p1 <- predict(rf1,newdata1)
+p1
+#       1 
+#1.809742
+
+
+#California
+p1_1 <- predict(rf1,newdata1b)
+#p1_1
+#       1 
+#1.849377  
+
+### Predictive Analysis ###
+
+#Elect_Results_1
+
+target1b <- X2016  ~ .
+#target3b
+
+# Prepare Test Data
+test_1b <- Elect_Results_1
+
+# Run Random Forest Model
+rf1b <- randomForest(target1b,data=test_1b,ntree=1000,proximity=TRUE)
+
+
+p1d <- predict(rf1b,test_1b)
+#p1d
+
+#str(13d)
+p1d2 <- as.data.frame(p1d)
+#p1d2
+#str(p3d2)
+
+
+# Prepare Test Results
+test_1b_pair <- data.frame(test_1b$STATE,p1d2$p1d)
+#head(test_1b_pair)
+names(test_1b_pair)[names(test_1b_pair)=="test_1b.STATE"] <- "state"
+names(test_1b_pair)[names(test_1b_pair)=="p1d2.p1d"] <- "Pr_2016"
+head(test_1b_pair)
+
+Results1_1 <- test_1b_pair
+
+Results1_1$Pr_2016rnd <- with(Results1_1, round(Pr_2016,0))
+
+head(ByState_Actual_2016)
+
+Results1_1$Actual  <- ByState_Actual_2016$Actual
+Results1_1$Match <- with(Results1_1, Pr_2016rnd - Actual)
+head(Results1_1)
+
+
+# Determine count and percentage of correct predictions
+Count_Match_1 = nrow(subset(Results1_1, Match==0))     # 'subset' returns a data.frame
+Count_Match_1 
+
+Count_Match_1_Pct <- percent(Count_Match_1/51)
+Count_Match_1_Pct
+#[1] "92.2%"
+
+```
+
+
+** Election Results-B: (2000-2014) with actual 2016 plus (7) Demographics **
+
+Scope: Use and historical data and (7) demographics as listed below.   This is also a test run using actual 2016 election data for pre-liminary test purposes.  The models in sections C,D, and E below are using only predictive data.
+
+Demograhics used:
+
+1). Labor Under-Utilization
+2). Relative Income
+3). Percent Urban
+4). Net International Migration
+5). Net Domestic Migration
+6). Percent Race
+7). Percent Female
+
+
+```{r, echo=TRUE}
+
+# Load the data csv file
+Elect_Results_3 <- read.csv(
+              "C:/data/Election_Results_Main_d5.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+head(Elect_Results_3)
+#str(Elect_Results_3)
+#names(Elect_Results_3)
+
+
+#Michigan
+newdata3 <- data.frame(
+  STATE = 23,
+  X2000 = 2,
+  X2004 = 2,
+  X2008 = 2,
+  X2012 = 2,
+  Und_Util = 12.1,
+  Rel_Income = 0.45981,
+  Pct_Urban =  74.6,
+  Net_Intl_Migr = 111091,
+  Net_Dom_Migr = -191130,
+  Pct_Race_Wh = 0.7970809,
+  Pct_Female = 0.5083789
+)
+
+#head(newdata3)
+
+#California
+newdata3b <- data.frame(
+  STATE = 5,
+  X2000 = 2,
+  X2004 = 2,
+  X2008 = 2,
+  X2012 = 2,
+  Und_Util = 11,
+  Rel_Income = 0.67458,
+  Pct_Urban =  95.0,
+  Net_Intl_Migr = 834999,
+  Net_Dom_Migr = -266115,
+  Pct_Race_Wh = 0.7289668,
+  Pct_Female = 0.5033042
+)
+
+#head(newdata3b)
+
+target3 <- X2016  ~ .
+#target3
+
+rf3 <- randomForest(target3,data=Elect_Results_3,ntree=1000,proximity=TRUE)
+#head(rf3)
+#str(rf3)
+#rf3
+#names(Elect_Results_3)
+
+#head(Elect_Results_3)
+
+
+# Michigan
+p3 <- predict(rf3,newdata3)
+p3
+#       1 
+##1.809742
+#     1 
+#1.26615 
+
+#California
+p3_1 <- predict(rf3,newdata3b)
+p3_1
+#       1 
+#1.849377
+#       1 
+#1.95555 
+
+### Predictive Analysis ###
+
+head(Elect_Results_3)
+
+target3b <- X2016  ~ .
+#target3b
+
+# Prepare Test Data
+test_3b <- Elect_Results_3
+
+
+# Run Random Forest Model
+rf3b <- randomForest(target3b,data=test_3b,ntree=1000,proximity=TRUE)
+
+
+p3d <- predict(rf3b,test_3b)
+#p3d
+
+#str(p3d)
+p3d2 <- as.data.frame(p3d)
+#p3d2
+#str(p3d2)
+
+# Prepare Test Results
+test_3b_pair <- data.frame(test_3b$STATE,p3d2$p3d)
+#head(test_3b_pair)
+names(test_3b_pair)[names(test_3b_pair)=="test_3b.STATE"] <- "state"
+names(test_3b_pair)[names(test_3b_pair)=="p3d2.p3d"] <- "Pr_2016"
+head(test_3b_pair)
+
+Results3_1 <- test_3b_pair
+
+Results3_1$Pr_2016rnd <- with(Results3_1, round(Pr_2016,0))
+
+head(ByState_Actual_2016)
+
+Results3_1$Actual  <- ByState_Actual_2016$Actual
+Results3_1$Match <- with(Results3_1, Pr_2016rnd - Actual)
+head(Results3_1)
+
+# Determine count and percentage of correct predictions
+Count_Match_3 = nrow(subset(Results3_1, Match==0))     # 'subset' returns a data.frame
+Count_Match_3 
+
+Count_Match_3_Pct <- percent(Count_Match_3/51)
+Count_Match_3_Pct
+#[1] "100%"
+
+```
+
+** Election Results-C: (2000-2014), with 2016 pre-election prediction data (average), plus (7) Demographics **
+
+Scope: Use and historical data and (7) demographics as listed below.  This Model is purely predictive.
+
+2016 Prediction: The training data utilizes the average of the previous (8) elections going back to 1984 filtered only for values = 1 (Repulican) or 2 (Democrat.)
+
+Demograhics used:
+
+1). Labor Under-Utilization
+2). Relative Income
+3). Percent Urban
+4). Net International Migration
+5). Net Domestic Migration
+6). Percent Race
+7). Percent Female
+
+
+```{r, echo=TRUE}
+
+# Load the data csv file
+Elect_Results_4 <- read.csv(
+              "C:/data/Election_Results_Main_d7.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+head(Elect_Results_4)
+#str(Elect_Results_4)
+#names(Elect_Results_4)
+
+### Predictive Analysis ###
+
+target4 <- Pr_2016  ~ .
+#target4
+
+# Create a set of training and test data
+
+#head(Elect_Results_4)
+#list(Elect_Results_4)
+
+# Prepare Training Data
+train_4 <- filter(Elect_Results_4,Pr_2016 %in% c(1.000,2.000))
+head(train_4)
+train_4b_pair <- data.frame(train_4$STATE,train_4$Pr_2016)
+#head(train_4b_pair)
+names(train_4b_pair)
+names(train_4b_pair)[names(train_4b_pair)=="train_4.STATE"] <- "state"
+names(train_4b_pair)[names(train_4b_pair)=="train_4.Pr_2016"] <- "Pr_2016"
+
+head(train_4b_pair)
+
+# Prepare Test Data
+test_4 <- filter(Elect_Results_4,!(Pr_2016 %in% c(1.000,2.000)))
+#test_4
+test_4b <- test_4[, !names(test_4) %in% c("Pr_2016")]
+head(test_4b)
+#head(test_4b)
+#str(test_4b)
+#test_4b
+
+
+# Run Random Forest Model
+rf4b <- randomForest(target4,data=train_4,ntree=1000,proximity=TRUE)
+
+p4d <- predict(rf4b,test_4b)
+#p4d
+#str(p4d)
+p4d2 <- as.data.frame(p4d)
+#p4d2
+#str(p4d2)
+
+# Prepare Test Results
+test_4b_pair <- data.frame(test_4b$STATE,p4d2$p4d)
+head(test_4b_pair)
+names(test_4b_pair)[names(test_4b_pair)=="test_4b.STATE"] <- "state"
+names(test_4b_pair)[names(test_4b_pair)=="p4d2.p4d"] <- "Pr_2016"
+
+Results4_1 <- merge(test_4b_pair,train_4b_pair, by = c("state","Pr_2016"),all=TRUE)
+
+Results4_1$Pr_2016rnd <- with(Results4_1, round(Pr_2016,0))
+
+head(ByState_Actual_2016)
+
+Results4_1$Actual  <- ByState_Actual_2016$Actual
+Results4_1$Match <- with(Results4_1, Pr_2016rnd - Actual)
+head(Results4_1)
+
+
+# Determine count and percentage of correct predictions
+Count_Match_4 = nrow(subset(Results4_1, Match==0))     # 'subset' returns a data.frame
+Count_Match_4 
+
+Count_Match_4_Pct <- percent(Count_Match_4/51)
+Count_Match_4_Pct
+
+#[1] "84.3%"
+
+
+```
+
+
+** Election Results-D: (2000-2014), with 2016 pre-election prediction data (average), with Under-utilization, Relative Income, and Percent Urban only (3 Demographics) **
+
+2016 Prediction: The training data utilizes the average of the previous (8) elections going back to 1984 filtered only for values = 1 (Repulican) or 2 (Democrat.)
+
+Demograhics used: 
+
+1). Labor Under-Utilization
+2). Relative Income
+3). Percent Urban
+
+
+
+```{r, echo=TRUE}
+
+# Load the data csv file
+Elect_Results_5 <- read.csv(
+              "C:/data/Election_Results_Main_d8.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+#head(Elect_Results_5)
+#str(Elect_Results_4)
+#names(Elect_Results_4)
+#head(Elect_Results_5)
+
+### Predictive Analysis ###
+
+target5b <- Pr_2016  ~ .
+#target5b
+
+# Prepare Training Data
+train_5 <- filter(Elect_Results_5,Pr_2016 %in% c(1.000,2.000))
+head(train_5)
+train_5b_pair <- data.frame(train_5$STATE,train_5$Pr_2016)
+head(train_5b_pair)
+names(train_5b_pair)
+names(train_5b_pair)[names(train_5b_pair)=="train_5.STATE"] <- "state"
+names(train_5b_pair)[names(train_5b_pair)=="train_5.Pr_2016"] <- "Pr_2016"
+
+head(train_5b_pair)
+
+# Prepare Test Data
+test_5 <- filter(Elect_Results_5,!(Pr_2016 %in% c(1.000,2.000)))
+#test_5
+test_5b <- test_5[, !names(test_5) %in% c("Pr_2016")]
+head(test_5b)
+#head(test_5b)
+#str(test_5b)
+#test_5b
+
+# Run Random Forest Model
+rf5b <- randomForest(target5b,data=train_5,ntree=1000,proximity=TRUE)
+
+
+p5d <- predict(rf5b,test_5b)
+#p5d
+#str(p5d)
+p5d2 <- as.data.frame(p5d)
+#p5d2
+#str(p5d)
+
+# Prepare Test Results
+test_5b_pair <- data.frame(test_5b$STATE,p5d2$p5d)
+#test_5b_pair
+names(test_5b_pair)[names(test_5b_pair)=="test_5b.STATE"] <- "state"
+names(test_5b_pair)[names(test_5b_pair)=="p5d2.p5d"] <- "Pr_2016"
+head(test_5b_pair)
+
+Results5_1 <- merge(test_5b_pair,train_5b_pair, by = c("state","Pr_2016"),all=TRUE)
+
+Results5_1$Pr_2016rnd <- with(Results5_1, round(Pr_2016,0))
+
+head(ByState_Actual_2016)
+
+Results5_1$Actual  <- ByState_Actual_2016$Actual
+Results5_1$Match <- with(Results5_1, Pr_2016rnd - Actual)
+head(Results5_1)
+
+
+# Determine count and percentage of correct predictions
+Count_Match_5 = nrow(subset(Results5_1, Match==0))     # 'subset' returns a data.frame
+Count_Match_5 
+
+Count_Match_5_Pct <- percent(Count_Match_5/51)
+Count_Match_5_Pct
+
+#[1] "84.3%"
+
+```
+
+
+** Election Results-E: (2000-2014), with 2016 prediction (average), plus (3) Demographics and Swing States flipped based on business rules on demographic trends **
+
+2016 Prediction: The training data utilizes the average of the previous (8) elections going back to 1984 filtered only for values = 1 (Repulican) or 2 (Democrat).  Then the follwing business rules were applied to the Swing States (states that had a history of changing outcomes (between 1 and 2), and that met the following conditions.
+
+Business Rules:
+
+a). The average result in the last (8) elections was > 1.0 and < 2.0. (Swing State)
+b). The state had voted for the incumbent party in the last two elections.
+c). If The state had two of the three behaviours on demographic data (then flipped to Democrat training data, if opposite then flipped to Republcan)
+  c1). The Under-utilization rate was less than the average.
+  c1). The relative income was higher than the average.
+  c2). The percent urban was higher than the average.
+
+Demograhics used:
+
+1). Labor Under-Utilization
+2). Relative Income
+3). Percent Urban
+
+
+```{r, echo=TRUE}
+
+# Load the data csv file
+Elect_Results_6 <- read.csv(
+              "C:/data/Election_Results_Main_d16.csv",
+              sep=",",
+              na.strings = "",
+              blank.lines.skip = TRUE,
+                stringsAsFactors=FALSE)
+
+#head(Elect_Results_6)
+#str(Elect_Results_6)
+#names(Elect_Results_6)
+#list(Elect_Results_6)
+
+
+### Predictive Analysis ###
+
+target6b <- Pr_2016  ~ .
+#target6b
+
+
+# Prepare Training Data
+train_6 <- filter(Elect_Results_6,Pr_2016 %in% c(1.000,2.000))
+#train_6
+train_6b_pair <- data.frame(train_6$STATE,train_6$Pr_2016)
+#train_6b_pair
+names(train_6b_pair)
+names(train_6b_pair)[names(train_6b_pair)=="train_6.STATE"] <- "state"
+names(train_6b_pair)[names(train_6b_pair)=="train_6.Pr_2016"] <- "Pr_2016"
+head(train_6b_pair)
+
+
+# Prepare Test Data
+test_6 <- filter(Elect_Results_6,!(Pr_2016 %in% c(1.000,2.000)))
+#test_6
+test_6b <- test_6[, !names(test_6) %in% c("Pr_2016")]
+head(test_6b)
+#head(test_6b)
+#str(test_6b)
+#test_6b
+
+# Run Random Forest Model
+rf6b <- randomForest(target6b,data=train_6,ntree=1000,proximity=TRUE)
+p6d <- predict(rf6b,test_6b)
+#p6d
+#str(p6d)
+p6d2 <- as.data.frame(p6d)
+#p6d2
+#str(p6d)
+
+# Prepare Test Results
+test_6b_pair <- data.frame(test_6b$STATE,p6d2$p6d)
+#test_6b_pair
+names(test_6b_pair)[names(test_6b_pair)=="test_6b.STATE"] <- "state"
+names(test_6b_pair)[names(test_6b_pair)=="p6d2.p6d"] <- "Pr_2016"
+head(test_6b_pair)
+
+Results6_1 <- merge(test_6b_pair,train_6b_pair, by = c("state","Pr_2016"),all=TRUE)
+
+Results6_1$Pr_2016rnd <- with(Results6_1, round(Pr_2016,0))
+
+#head(ByState_Actual_2016)
+
+Results6_1$Actual  <- ByState_Actual_2016$Actual
+Results6_1$Match <- with(Results6_1, Pr_2016rnd - Actual)
+head(Results6_1)
+
+# Determine count and percentage of correct predictions
+Count_Match_6 = nrow(subset(Results6_1, Match==0))     # 'subset' returns a data.frame
+Count_Match_6 
+
+Count_Match_6_Pct <- percent(Count_Match_6/51)
+Count_Match_6_Pct
+
+#[1] "86.3%"
+
+```
+
+
+** Conclusion **
+
+Conclusion: A moderately accurate model (84%) can be obtained based on average historical election results.  The basic demographics used did not result in a significant improvement to the accuracy of the model.  This is due to states that voted similarly, had widely differing demographics (for example Wyoming vs Florida).  This indicates other factors were also at play in this election.
+
+Adjusting (flipping) the training data based on behaviour of swing states did improve the model accuracy.  Additional demographic data could be useful for these types of adjustments.
+
+Potential Future Work: Add additional factors beyond demographics such as candidate popularity (by state).  Add additional business rules to training behaviour of swing states.
+
+Individual Model Results:
+Models-A & B: Historical Data only, Real Election results used for training.
+Result: for testing purposes only.
+Percent accuracy: #"92.2%", "100.0%"
+
+
+Model-C: Historical Data plus (7) Demographics.  Historical election results used for training.
+Result: Moderate accuracy
+Percent accuracy: #"84.3%"
+
+
+Model-D: Historical Data plus (3) Demographics.  Historical election results used for training.
+Result: Moderate accuracy
+Percent accuracy: #"84.3%"
+
+Model-E: Historical Data plus (3) Demographics.  Historical election results plus business rule adjustments applied to Swing States used for training.
+Result: Moderate accuracy- slight improvement
+Percent accuracy: #"86.3%"
+
